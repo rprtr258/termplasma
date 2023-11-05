@@ -1,7 +1,7 @@
 use std::mem::MaybeUninit;
 use std::io::{self, Write};
 use std::thread::sleep;
-use std::time::{Duration, Instant, UNIX_EPOCH, SystemTime};
+use std::time::{Duration, UNIX_EPOCH, SystemTime};
 use libc::{c_ushort, STDOUT_FILENO, TIOCGWINSZ};
 
 const MATH_PI: f64 = 3.14159265358979323846;
@@ -14,26 +14,40 @@ struct Winsize {
     ws_ypixel: c_ushort,
 }
 
-fn max(a: f64, b: f64) -> f64 {
-    if a > b { a } else { b }
+struct Buffer {
+    buf: Vec<u8>,
+    i: usize,
 }
 
-fn append_int(i: &mut usize, x: u8, buf: &mut [u8]) {
-    if x < 10 {
-        buf[*i] = (x + b'0') as char as u8;
-        *i += 1;
-    } else if x < 100 {
-        buf[*i] = (x / 10 + b'0') as char as u8;
-        *i += 1;
-        buf[*i] = (x % 10 + b'0') as char as u8;
-        *i += 1;
-    } else {
-        buf[*i] = (x / 100 + b'0') as char as u8;
-        *i += 1;
-        buf[*i] = ((x / 10) % 10 + b'0') as char as u8;
-        *i += 1;
-        buf[*i] = (x % 10 + b'0') as char as u8;
-        *i += 1;
+impl Buffer {
+    fn new(h: usize, w: usize) -> Self {
+        Self {
+            buf: vec![0; h * w * 24],
+            i: 0,
+        }
+    }
+    fn reset(&mut self) {
+        self.i = 0;
+    }
+    fn b(mut self, b: u8) -> Self {
+        self.buf[self.i] = b;
+        self.i += 1;
+        return self
+    }
+    fn i(self, x: u8) -> Self {
+        if x < 10 {
+            self.
+                b((x + b'0') as char as u8)
+        } else if x < 100 {
+            self
+                .b((x / 10 + b'0') as char as u8)
+                .b((x % 10 + b'0') as char as u8)
+        } else {
+            self
+                .b((x / 100 + b'0') as char as u8)
+                .b(((x / 10) % 10 + b'0') as char as u8)
+                .b((x % 10 + b'0') as char as u8)
+        }
     }
 }
 
@@ -43,7 +57,7 @@ fn main() -> io::Result<()> {
 
     let mut t0 = SystemTime::now();
 
-    let mut buf = vec![b' '; 332 * 1914 * 24];
+    let mut buf = Buffer::new(332, 1914);
 
     loop {
         let tt = SystemTime::now();
@@ -61,8 +75,8 @@ fn main() -> io::Result<()> {
         let h = wss.ws_row as usize;
         let w = wss.ws_col as usize;
 
-        let mut i = 0;
         let t = (t0.duration_since(UNIX_EPOCH).unwrap().as_millis() as f64)/1000.;
+        buf.reset();
         for y in 0..h {
             for x in 0..w {
                 let uvx = (x as f64) / (w as f64);
@@ -76,47 +90,25 @@ fn main() -> io::Result<()> {
                 let v3 = ((100.0 * (cx * cx + cy * cy)).sqrt() + t).sin();
 
                 let vf = v1 + v2 + v3;
-                let r = (max(0.0, (vf * MATH_PI).cos() - 0.5) * 2.0 * 255.0) as u8;
-                let g = (max(0.0, (vf * MATH_PI + 6.0 * MATH_PI / 3.0).sin() - 0.5) * 2.0 * 255.0) as u8;
-                let b = (max(0.0, (vf * MATH_PI + 4.0 * MATH_PI / 3.0).sin() - 0.5) * 2.0 * 255.0) as u8;
+                let r = (((vf * MATH_PI                      ).cos() - 0.5).max(0.0) * 2.0 * 255.0) as u8;
+                let g = (((vf * MATH_PI + 6.0 * MATH_PI / 3.0).sin() - 0.5).max(0.0) * 2.0 * 255.0) as u8;
+                let b = (((vf * MATH_PI + 4.0 * MATH_PI / 3.0).sin() - 0.5).max(0.0) * 2.0 * 255.0) as u8;
 
-                buf[i] = b'\x1b';
-                i += 1;
-                buf[i] = b'[';
-                i += 1;
-                buf[i] = b'4';
-                i += 1;
-                buf[i] = b'8';
-                i += 1;
-                buf[i] = b';';
-                i += 1;
-                buf[i] = b'2';
-                i += 1;
-                buf[i] = b';';
-                i += 1;
 
-                append_int(&mut i, r, &mut buf);
-
-                buf[i] = b';';
-                i += 1;
-
-                append_int(&mut i, g, &mut buf);
-
-                buf[i] = b';';
-                i += 1;
-
-                append_int(&mut i, b, &mut buf);
-
-                buf[i] = b'm';
-                i += 1;
-                buf[i] = b' ';
-                i += 1;
+                buf = buf
+                    .b(b'\x1b').b(b'[').b(b'4').b(b'8').b(b';').b(b'2').b(b';')
+                    .i(r)
+                    .b(b';')
+                    .i(g)
+                    .b(b';')
+                    .i(b)
+                    .b(b'm').b(b' ');
             }
         }
 
         let move_topleft = b"\x1b[0;0H";
         io::stdout().write_all(move_topleft)?;
-        io::stdout().write_all(&buf[..i])?;
+        io::stdout().write_all(&buf.buf[..buf.i])?;
         io::stdout().flush()?;
     }
 }
