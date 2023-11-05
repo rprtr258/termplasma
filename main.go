@@ -16,7 +16,9 @@ func main() {
 	t0 := time.Now().UnixMilli()
 	for {
 		tt := time.Now().UnixMilli()
-		if tt-t0 < 1000/60 {
+		dura := time.Duration(tt - t0)
+		if dura < 1000/60 {
+			time.Sleep(time.Millisecond * (1000/60 - dura))
 			continue
 		}
 		t0 = tt

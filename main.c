@@ -1,5 +1,6 @@
 #include "math.h"
 #include "unistd.h"
+#include "time.h"
 #include "sys/time.h"
 #include "sys/ioctl.h"
 #include "stdint.h"
@@ -51,6 +52,7 @@ int main() {
 		gettimeofday(&tv, &tz);
 		long tt = tv.tv_sec*1000 + tv.tv_usec/1000;
 		if (tt-t0 < 1000/60) {
+			usleep(1000/60 - (tt-t0));
 			continue;
 		}
 		t0 = tt;
