@@ -5,7 +5,8 @@ import (
 	"strconv"
 	"syscall"
 	"time"
-	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 const TIOCGWINSZ = 0x5413
@@ -23,13 +24,7 @@ func main() {
 		}
 		t0 = tt
 
-		var ws struct {
-			Row    uint16
-			Col    uint16
-			Xpixel uint16
-			Ypixel uint16
-		}
-		syscall.Syscall(syscall.SYS_IOCTL, 2, uintptr(TIOCGWINSZ), uintptr(unsafe.Pointer(&ws)))
+		ws, _ := unix.IoctlGetWinsize(2, unix.TIOCGWINSZ)
 		h := int(ws.Row)
 		w := int(ws.Col)
 		buf = buf[:0]
