@@ -14,15 +14,8 @@ const TIOCGWINSZ = 0x5413
 func main() {
 	buf := make([]byte, 332*1914*24)
 	syscall.Write(1, []byte("\x1b[?25l"))
-	t0 := time.Now().UnixMilli()
 	for {
 		tt := time.Now().UnixMilli()
-		dura := time.Duration(tt - t0)
-		if dura < 1000/60 {
-			time.Sleep(time.Millisecond * (1000/60 - dura))
-			continue
-		}
-		t0 = tt
 
 		ws, _ := unix.IoctlGetWinsize(2, unix.TIOCGWINSZ)
 		h := int(ws.Row)
@@ -57,7 +50,8 @@ func main() {
 				buf = append(buf, "m "...)
 			}
 		}
-		syscall.Write(1, []byte("\x1b[0;0H"))
+		syscall.Write(1, []byte("\x1b[0;0H\x1b[?2026h"))
 		syscall.Write(1, buf)
+		syscall.Write(1, []byte("\x1b[?2026l"))
 	}
 }

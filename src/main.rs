@@ -87,9 +87,11 @@ fn main() -> io::Result<()> {
                 }))
             .collect::<Vec<u8>>();
 
-        let move_topleft = b"\x1b[0;0H";
+        let move_topleft = b"\x1b[0;0H\x1b[?2026h";
         io::stdout().write_all(move_topleft)?;
         io::stdout().write_all(&buf)?;
+        let end_frame = b"\x1b[?2026l";
+        io::stdout().write_all(end_frame)?;
         io::stdout().flush()?;
     }
 }

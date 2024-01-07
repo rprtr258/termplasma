@@ -12,7 +12,10 @@ struct {
 	int16_t Ypixel;
 } ws;
 
-char buf[332*1914*24]; // max_term_height*max_term_width*bytes_per_char
+const max_term_height = 332;
+const max_term_width = 1914;
+const bytes_per_char = 24;
+char buf[max_term_height*max_term_width*bytes_per_char];
 
 struct timezone tz;
 
@@ -102,9 +105,11 @@ int main() {
 				buf[i++] = ' ';
 			}
 		}
-		char move_topleft[] = "\x1b[0;0H";
+		char move_topleft[] = "\x1b[0;0H\x1b[?2026h";
 		write(1, move_topleft, sizeof(move_topleft));
 		write(1, buf, i);
+		char end_frame[] = "\x1b[?2026l";
+		write(1, end_frame, sizeof(end_frame));
 	}
 	return 0;
 }
